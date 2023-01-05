@@ -18,19 +18,18 @@ package org.apache.cordova.videoeditor;
  * limitations under the License.
  */
 
+import android.annotation.SuppressLint;
 import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.DatabaseUtils;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Environment;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 
-import android.util.Log;
 import android.webkit.MimeTypeMap;
 
 import java.io.BufferedOutputStream;
@@ -40,7 +39,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.text.DecimalFormat;
 import java.util.Comparator;
 
@@ -52,7 +50,6 @@ public class FileUtils {
     /**
      * TAG for log messages.
      */
-    static final String TAG = "FileUtils";
     private static final boolean DEBUG = false; // Set to true to enable logging
     /**
      * File and folder comparator. TODO Expose sorting option method
@@ -108,14 +105,6 @@ public class FileUtils {
      */
     public static boolean isLocal(String url) {
         return url != null && !url.startsWith("http://") && !url.startsWith("https://");
-    }
-
-    /**
-     * @return True if Uri is a MediaStore Uri.
-     * @author paulburke
-     */
-    public static boolean isMediaUri(Uri uri) {
-        return "media".equalsIgnoreCase(uri.getAuthority());
     }
 
     /**
@@ -289,22 +278,8 @@ public class FileUtils {
     }
 
     private static String getLocalPath(final Context context, final Uri uri) {
-
-        if (DEBUG)
-            Log.d(TAG + " File -",
-                    "Authority: " + uri.getAuthority() +
-                            ", Fragment: " + uri.getFragment() +
-                            ", Port: " + uri.getPort() +
-                            ", Query: " + uri.getQuery() +
-                            ", Scheme: " + uri.getScheme() +
-                            ", Host: " + uri.getHost() +
-                            ", Segments: " + uri.getPathSegments().toString()
-            );
-
-        final boolean isKitKat = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT;
-
         // DocumentProvider
-        if (isKitKat && DocumentsContract.isDocumentUri(context, uri)) {
+        if (DocumentsContract.isDocumentUri(context, uri)) {
             // LocalStorageProvider
             if (isLocalStorageDocument(uri)) {
                 // The path is the id
@@ -343,7 +318,7 @@ public class FileUtils {
                         if (path != null) {
                             return path;
                         }
-                    } catch (Exception e) {}
+                    } catch (Exception ignored) {}
                 }
 
                 // path could not be retrieved using ContentResolver, therefore copy file to accessible cache using streams
@@ -418,7 +393,7 @@ public class FileUtils {
     public static File getFile(Context context, Uri uri) {
         if (uri != null) {
             String path = getPath(context, uri);
-            if (path != null && isLocal(path)) {
+            if (isLocal(path)) {
                 return new File(path);
             }
         }
@@ -480,19 +455,8 @@ public class FileUtils {
         if (!dir.exists()) {
             dir.mkdirs();
         }
-        logDir(context.getCacheDir());
-        logDir(dir);
 
         return dir;
-    }
-
-    private static void logDir(File dir) {
-        if(!DEBUG) return;
-        Log.d(TAG, "Dir=" + dir);
-        File[] files = dir.listFiles();
-        for (File file : files) {
-            Log.d(TAG, "File=" + file.getPath());
-        }
     }
 
     public static File generateFileName(String name, File directory) {
@@ -525,11 +489,8 @@ public class FileUtils {
                 return null;
             }
         } catch (IOException e) {
-            Log.w(TAG, e);
             return null;
         }
-
-        logDir(directory);
 
         return file;
     }
@@ -598,7 +559,7 @@ public class FileUtils {
         String mimeType = context.getContentResolver().getType(uri);
         String filename = null;
 
-        if (mimeType == null && context != null) {
+        if (mimeType == null) {
             String path = getPath(context, uri);
             if (path == null) {
                 filename = getName(uri.toString());
@@ -629,25 +590,17 @@ public class FileUtils {
     }
 
     private static String getGoogleDriveFilePath(Uri uri, Context context) {
-        Uri returnUri = uri;
-        Cursor returnCursor = context.getContentResolver().query(returnUri, null, null, null, null);
-        /*
-         * Get the column indexes of the data in the Cursor,
-         *     * move to the first row in the Cursor, get the data,
-         *     * and display it.
-         * */
+        @SuppressLint("Recycle") Cursor returnCursor = context.getContentResolver().query(uri, null, null, null, null);
         int nameIndex = returnCursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
-        int sizeIndex = returnCursor.getColumnIndex(OpenableColumns.SIZE);
         returnCursor.moveToFirst();
 
         String name = (returnCursor.getString(nameIndex));
-        String size = (Long.toString(returnCursor.getLong(sizeIndex)));
         File file = new File(context.getCacheDir(), name);
         try {
             InputStream inputStream = context.getContentResolver().openInputStream(uri);
             FileOutputStream outputStream = new FileOutputStream(file);
             int read = 0;
-            int maxBufferSize = 1 * 1024 * 1024;
+            int maxBufferSize = 1024 * 1024;
             int bytesAvailable = inputStream.available();
             int bufferSize = Math.min(bytesAvailable, maxBufferSize);
 

@@ -23,7 +23,7 @@ typedef NSUInteger CDVOutputFileType;
 @interface VideoEditor : CDVPlugin {
 }
 
-- (void)transcodeVideo:(CDVInvokedUrlCommand*)command;
+- (void) transcodeVideo:(CDVInvokedUrlCommand*)command;
 - (void) createThumbnail:(CDVInvokedUrlCommand*)command;
 - (void) getVideoInfo:(CDVInvokedUrlCommand*)command;
 - (void) trim:(CDVInvokedUrlCommand*)command;

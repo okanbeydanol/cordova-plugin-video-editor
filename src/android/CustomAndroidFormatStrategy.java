@@ -2,11 +2,11 @@ package org.apache.cordova.videoeditor;
 
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
-import android.util.Log;
 
 import net.ypresto.androidtranscoder.format.MediaFormatExtraConstants;
 import net.ypresto.androidtranscoder.format.MediaFormatStrategy;
-import net.ypresto.androidtranscoder.format.OutputFormatUnavailableException;
+
+import java.util.Objects;
 
 /**
  * Created by ehmm on 02.05.2016.
@@ -58,7 +58,7 @@ public class CustomAndroidFormatStrategy implements MediaFormatStrategy {
     }
 
     public MediaFormat createVideoOutputFormat(MediaFormat inputFormat) {
-        boolean isAVCVideoFormat = inputFormat.getString(MediaFormat.KEY_MIME).equals(MediaFormatExtraConstants.MIMETYPE_VIDEO_AVC);
+        boolean isAVCVideoFormat = Objects.equals(inputFormat.getString(MediaFormat.KEY_MIME), MediaFormatExtraConstants.MIMETYPE_VIDEO_AVC);
         if (isAVCVideoFormat && mSkipVideoTranscodingIfAVC) {
             return null;
         }
@@ -68,11 +68,7 @@ public class CustomAndroidFormatStrategy implements MediaFormatStrategy {
         int inLonger, inShorter, outWidth, outHeight, outLonger;
         double aspectRatio;
 
-        if (this.width >= this.height) {
-            outLonger = this.width;
-        } else {
-            outLonger = this.height;
-        }
+        outLonger = Math.max(this.width, this.height);
 
         if (inWidth >= inHeight) {
             inLonger = inWidth;
@@ -85,13 +81,12 @@ public class CustomAndroidFormatStrategy implements MediaFormatStrategy {
         }
 
         if (inLonger > outLonger && outLonger > 0) {
+            aspectRatio = (double) inLonger / (double) inShorter;
             if (inWidth >= inHeight) {
-                aspectRatio = (double) inLonger / (double) inShorter;
                 outWidth = outLonger;
                 outHeight = Double.valueOf(outWidth / aspectRatio).intValue();
 
             } else {
-                aspectRatio = (double) inLonger / (double) inShorter;
                 outHeight = outLonger;
                 outWidth = Double.valueOf(outHeight / aspectRatio).intValue();
             }
@@ -111,7 +106,7 @@ public class CustomAndroidFormatStrategy implements MediaFormatStrategy {
     }
 
     public MediaFormat createAudioOutputFormat(MediaFormat inputFormat) {
-        boolean isAACAudioFormat = inputFormat.getString(MediaFormat.KEY_MIME).equals(MediaFormatExtraConstants.MIMETYPE_AUDIO_AAC);
+        boolean isAACAudioFormat = Objects.equals(inputFormat.getString(MediaFormat.KEY_MIME), MediaFormatExtraConstants.MIMETYPE_AUDIO_AAC);
         if (mAudioBitrate == AUDIO_BITRATE_AS_IS && mAudioChannels == AUDIO_CHANNELS_AS_IS && isAACAudioFormat) return null;
 
         int audioBitrate = mAudioBitrate;

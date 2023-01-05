@@ -54,6 +54,8 @@ declare interface VideoEditorTranscodeProperties {
         audioBitrate?: number,
         /** Skip any transcoding actions (conversion/resizing/etc..) if the input video is avc video, defaults to false. Android only. */
         skipVideoTranscodingIfAVC?: boolean,
+        /** Duration of the video in seconds. (ANDROID ONLY) */
+        duration: number,
         /** Not supported in windows, progress on the transcode*/
         progress?: (info: any) => void
 }

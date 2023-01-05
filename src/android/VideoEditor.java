@@ -25,9 +25,7 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.MediaExtractor;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Environment;
-import android.util.Log;
 
 import net.ypresto.androidtranscoder.MediaTranscoder;
 import net.ypresto.androidtranscoder.utils.MediaExtractorUtils;
@@ -57,33 +55,30 @@ public class VideoEditor extends CordovaPlugin {
      */
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
-        Log.d(TAG, "execute method starting");
-
         this.callback = callbackContext;
-
-        if (action.equals("transcodeVideo")) {
-            try {
-                this.transcodeVideo(args);
-            } catch (IOException e) {
-                callback.error(e.toString());
-            }
-            return true;
-        } else if (action.equals("createThumbnail")) {
-            try {
-                this.createThumbnail(args);
-            } catch (IOException e) {
-                callback.error(e.toString());
-            }
-            return true;
-        } else if (action.equals("getVideoInfo")) {
-            try {
-                this.getVideoInfo(args);
-            } catch (IOException e) {
-                callback.error(e.toString());
-            }
-            return true;
+        switch (action) {
+            case "transcodeVideo":
+                try {
+                    this.transcodeVideo(args);
+                } catch (IOException e) {
+                    callback.error(e.toString());
+                }
+                return true;
+            case "createThumbnail":
+                try {
+                    this.createThumbnail(args);
+                } catch (IOException e) {
+                    callback.error(e.toString());
+                }
+                return true;
+            case "getVideoInfo":
+                try {
+                    this.getVideoInfo(args);
+                } catch (IOException e) {
+                    callback.error(e.toString());
+                }
+                return true;
         }
-
         return false;
     }
 
@@ -105,6 +100,7 @@ public class VideoEditor extends CordovaPlugin {
      * audioBitrate                - audio bitrate for the output video in bits
      * audioChannels               - number of audio channels
      * skipVideoTranscodingIfAVC   - skip any transcoding actions (conversion/resizing/etc..) if the input video is avc video
+     * duration                    - max video duration (in seconds?)
      *
      * RESPONSE
      * ========
@@ -114,11 +110,7 @@ public class VideoEditor extends CordovaPlugin {
      * @param args arguments
      */
     private void transcodeVideo(JSONArray args) throws JSONException, IOException {
-        Log.d(TAG, "transcodeVideo firing");
-
         JSONObject options = args.optJSONObject(0);
-        Log.d(TAG, "options: " + options.toString());
-
         final ReadDataResult readResult = this.readDataFrom(options.getString("fileUri"));
         if (readResult == null) {
             return;
@@ -175,16 +167,12 @@ public class VideoEditor extends CordovaPlugin {
                 outputFileName + outputExtension
         ).getAbsolutePath();
 
-        Log.d(TAG, "outputFilePath: " + outputFilePath);
-
         cordova.getThreadPool().execute(() -> {
 
             try {
                 MediaTranscoder.Listener listener = new MediaTranscoder.Listener() {
                     @Override
                     public void onTranscodeProgress(double progress) {
-                        Log.d(TAG, "transcode running " + progress);
-
                         JSONObject jsonObj = new JSONObject();
                         try {
                             jsonObj.put("progress", progress);
@@ -199,10 +187,8 @@ public class VideoEditor extends CordovaPlugin {
 
                     @Override
                     public void onTranscodeCompleted() {
-
                         File outFile = new File(outputFilePath);
                         if (!outFile.exists()) {
-                            Log.d(TAG, "outputFile doesn't exist!");
                             readResult.close();
                             callback.error("an error ocurred during transcoding");
                             return;
@@ -224,14 +210,12 @@ public class VideoEditor extends CordovaPlugin {
                     public void onTranscodeCanceled() {
                         readResult.close();
                         callback.error("transcode canceled");
-                        Log.d(TAG, "transcode canceled");
                     }
 
                     @Override
                     public void onTranscodeFailed(Exception exception) {
                         readResult.close();
                         callback.error(exception.toString());
-                        Log.d(TAG, "transcode exception", exception);
                     }
                 };
 
@@ -249,7 +233,6 @@ public class VideoEditor extends CordovaPlugin {
                 );
 
             } catch (Throwable e) {
-                Log.d(TAG, "transcode exception ", e);
                 readResult.close();
                 callback.error(e.toString());
             }
@@ -279,10 +262,7 @@ public class VideoEditor extends CordovaPlugin {
      * @param args arguments
      */
     private void createThumbnail(JSONArray args) throws JSONException, IOException {
-        Log.d(TAG, "createThumbnail firing");
-
         JSONObject options = args.optJSONObject(0);
-        Log.d(TAG, "options: " + options.toString());
 
         final ReadDataResult readResult = this.readDataFrom(options.getString("fileUri"));
         if (readResult == null) {
@@ -332,14 +312,8 @@ public class VideoEditor extends CordovaPlugin {
                     int videoHeight = bitmap.getHeight();
                     double aspectRatio = (double) videoWidth / (double) videoHeight;
 
-                    Log.d(TAG, "videoWidth: " + videoWidth);
-                    Log.d(TAG, "videoHeight: " + videoHeight);
-
                     int scaleWidth = Double.valueOf(height * aspectRatio).intValue();
                     int scaleHeight = Double.valueOf(scaleWidth / aspectRatio).intValue();
-
-                    Log.d(TAG, "scaleWidth: " + scaleWidth);
-                    Log.d(TAG, "scaleHeight: " + scaleHeight);
 
                     final Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, scaleWidth, scaleHeight, false);
                     bitmap.recycle();
@@ -360,7 +334,6 @@ public class VideoEditor extends CordovaPlugin {
                     }
                 }
 
-                Log.d(TAG, "exception on thumbnail creation", e);
                 callback.error(e.toString());
 
             } finally {
@@ -395,10 +368,7 @@ public class VideoEditor extends CordovaPlugin {
      * @param args arguments
      */
     private void getVideoInfo(JSONArray args) throws JSONException, IOException {
-        Log.d(TAG, "getVideoInfo firing");
-
         JSONObject options = args.optJSONObject(0);
-        Log.d(TAG, "options: " + options.toString());
 
         final ReadDataResult readResult = this.readDataFrom(options.getString("fileUri"));
         if (readResult == null) {
@@ -412,25 +382,20 @@ public class VideoEditor extends CordovaPlugin {
         float videoHeight = Float.parseFloat(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
 
         String orientation;
-        if (Build.VERSION.SDK_INT >= 17) {
-            String mmrOrientation = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
-            Log.d(TAG, "mmrOrientation: " + mmrOrientation); // 0, 90, 180, or 270
+        String mmrOrientation = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION);
 
-            if (videoWidth < videoHeight) {
-                if (mmrOrientation.equals("0") || mmrOrientation.equals("180")) {
-                    orientation = "portrait";
-                } else {
-                    orientation = "landscape";
-                }
+        if (videoWidth < videoHeight) {
+            if (mmrOrientation.equals("0") || mmrOrientation.equals("180")) {
+                orientation = "portrait";
             } else {
-                if (mmrOrientation.equals("0") || mmrOrientation.equals("180")) {
-                    orientation = "landscape";
-                } else {
-                    orientation = "portrait";
-                }
+                orientation = "landscape";
             }
         } else {
-            orientation = (videoWidth < videoHeight) ? "portrait" : "landscape";
+            if (mmrOrientation.equals("0") || mmrOrientation.equals("180")) {
+                orientation = "landscape";
+            } else {
+                orientation = "portrait";
+            }
         }
 
         double duration = Double.parseDouble(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)) / 1000.0;
@@ -451,7 +416,6 @@ public class VideoEditor extends CordovaPlugin {
             mExtractor.release();
             trackResult = null;
         } catch (Throwable e) {
-            Log.e(TAG, e.toString());
             callback.error(e.toString());
             readResult.close();
             return;
@@ -481,7 +445,6 @@ public class VideoEditor extends CordovaPlugin {
     private ReadDataResult readDataFrom(String url) throws IOException {
         if (!FileUtils.isLocal(url)) {
             final String msg = "The provided url is null or not local: " + url;
-            Log.d(TAG, msg);
             callback.error(msg);
             return null;
         }
